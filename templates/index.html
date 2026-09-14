@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messenger Bot Panel</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: #1e293b; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        h2 { text-align: center; color: #38bdf8; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        textarea, input[type="text"], input[type="number"], input[type="file"] { width: 100%; padding: 10px; border: 1px solid #475569; background: #0f172a; color: #fff; border-radius: 5px; box-sizing: border-box; }
+        textarea { height: 100px; resize: vertical; font-family: monospace; }
+        button { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; font-size: 16px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #1d4ed8; }
+        .task-box { margin-top: 15px; padding: 10px; background: #0f172a; border-left: 4px solid #22c55e; border-radius: 4px; display: none; }
+        .logs-container { margin-top: 20px; background: #090d16; border: 1px solid #334155; border-radius: 5px; padding: 15px; height: 250px; overflow-y: auto; font-family: monospace; font-size: 13px; color: #a5f3fc; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Messenger Automation Bot</h2>
+        <form id="botForm">
+            <div class="form-group">
+                <label>JSON Cookies (Appstate):</label>
+                <textarea name="cookies" placeholder='[{"name": "c_user", "value": "..."}, {"name": "xs", "value": "..."}]' required></textarea>
+            </div>
+            <div class="form-group">
+                <label>Non-E2EE Group ID / Thread ID:</label>
+                <input type="text" name="thread_id" placeholder="Enter Thread ID" required>
+            </div>
+            <div class="form-group">
+                <label>Haters Name (Prefix):</label>
+                <input type="text" name="hater_name" placeholder="e.g. HaterX" required>
+            </div>
+            <div class="form-group">
+                <label>Time Delay (in seconds):</label>
+                <input type="number" name="delay" value="5" step="0.5" min="1" required>
+            </div>
+            <div class="form-group">
+                <label>Messages File (.txt):</label>
+                <input type="file" name="message_file" accept=".txt" required>
+            </div>
+            <button type="submit">Start Bot 🚀</button>
+        </form>
+
+        <div class="task-box" id="taskBox">
+            <strong>Generated Task ID:</strong> <span id="taskIdDisplay" style="color: #4ade80;"></span>
+        </div>
+
+        <h3>Live Logs & Errors:</h3>
+        <div class="logs-container" id="logsBox">Logs will appear here once started...</div>
+    </div>
+
+    <script>
+        const form = document.getElementById('botForm');
+        const logsBox = document.getElementById('logsBox');
+        const taskBox = document.getElementById('taskBox');
+        const taskIdDisplay = document.getElementById('taskIdDisplay');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            logsBox.innerHTML = "Initializing task...\n";
+            taskBox.style.display = "none";
+
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('/start', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    const taskId = data.task_id;
+                    taskIdDisplay.innerText = taskId;
+                    taskBox.style.display = "block";
+                    
+                    // Connect to Server-Sent Events (SSE) for live logs
+                    const eventSource = new EventSource(`/stream/${taskId}`);
+                    eventSource.onmessage = function(event) {
+                        logsBox.innerHTML += event.data + "\n";
+                        logsBox.scrollTop = logsBox.scrollHeight; // Auto scroll to bottom
+                    };
+
+                    eventSource.onerror = function() {
+                        logsBox.innerHTML += "⚠️ Connection to log stream lost or task ended.\n";
+                        eventSource.close();
+                    };
+                } else {
+                    alert("Error: " + data.error);
+                    logsBox.innerHTML += "❌ Error: " + data.error + "\n";
+                }
+            } catch (err) {
+                alert("Network error: " + err);
+            }
+        });
+    </script>
+</body>
+</html>
