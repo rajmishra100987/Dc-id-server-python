@@ -78,11 +78,10 @@
                     taskIdDisplay.innerText = taskId;
                     taskBox.style.display = "block";
                     
-                    // Connect to Server-Sent Events (SSE) for live logs
                     const eventSource = new EventSource(`/stream/${taskId}`);
                     eventSource.onmessage = function(event) {
                         logsBox.innerHTML += event.data + "\n";
-                        logsBox.scrollTop = logsBox.scrollHeight; // Auto scroll to bottom
+                        logsBox.scrollTop = logsBox.scrollHeight;
                     };
 
                     eventSource.onerror = function() {
