@@ -9,7 +9,7 @@ import fbchat
 
 app = Flask(__name__)
 
-# Active tasks ko store karne ke liye dictionary
+# Active tasks store karne ke liye dictionary
 tasks = {}
 
 async def bot_worker(task_id, cookies, thread_id, hater_name, delay, messages):
@@ -18,7 +18,7 @@ async def bot_worker(task_id, cookies, thread_id, hater_name, delay, messages):
             tasks[task_id]["logs"].append(msg)
 
     try:
-        log("🔄 Logging in to Facebook/Messenger via cookies...")
+        log("🔄 Logging in to Messenger via cookies...")
         session = await fbchat.Session.from_cookies(cookies, domain="messenger.com")
         log("✅ Login Successful!")
     except Exception as e:
@@ -36,7 +36,9 @@ async def bot_worker(task_id, cookies, thread_id, hater_name, delay, messages):
         if current_message:
             formatted_msg = f"{hater_name} {current_message}"
             try:
-                await session.send_text(text=formatted_msg, thread_id=thread_id)
+                # Correct method: Pehle thread fetch karein, phir text bhejein
+                thread = await session.fetch_thread(thread_id)
+                await thread.send_text(formatted_msg)
                 log(f"📤 Sent: {formatted_msg}")
             except Exception as e:
                 log(f"⚠️ Message Send Error / Bug: {str(e)}")
@@ -44,7 +46,7 @@ async def bot_worker(task_id, cookies, thread_id, hater_name, delay, messages):
         # Index update for infinite loop
         msg_index = (msg_index + 1) % len(messages)
         
-        # Delay handling (async sleep)
+        # Time delay handling
         await asyncio.sleep(delay)
 
 @app.route('/')
@@ -74,7 +76,7 @@ def start_bot():
             return jsonify({"error": "No file selected!"}), 400
 
         messages = file.read().decode('utf-8').splitlines()
-        messages = [msg for msg in messages if msg.strip()] # Remove empty lines
+        messages = [msg for msg in messages if msg.strip()]
 
         if not messages:
             return jsonify({"error": "Uploaded file is empty!"}), 400
@@ -87,7 +89,7 @@ def start_bot():
             "logs": [f"🚀 Task initialized with ID: {task_id}"]
         }
 
-        # Run bot in a background thread with its own event loop
+        # Background thread execution
         def run_async_loop():
             asyncio.run(bot_worker(task_id, cookies, thread_id, hater_name, delay, messages))
 
@@ -119,4 +121,4 @@ def stream(task_id):
     return Response(generate(), mimetype='text/event-stream')
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000)
