@@ -4,9 +4,9 @@ import threading
 import time
 from flask import Flask, request, jsonify, Response, render_template_string
 
-# ✅ सही इम्पोर्ट्स
-from fbchat_v2 import dataGetHome
-from _messaging._send import api as SendAPI
+# ✅ सही इम्पोर्ट्स (fbchat-v2 v2.3.3+ के अनुसार)
+from fbchat_v2._core._session import dataGetHome
+from fbchat_v2._messaging._send import api as SendAPI
 
 app = Flask(__name__)
 tasks = {}
@@ -132,6 +132,7 @@ async def bot_worker(task_id, cookie_string, thread_id, hater_name, delay, messa
 
     try:
         log("🔄 Logging in to Messenger via cookies...")
+        # ✅ async dataGetHome
         data_fb = await dataGetHome(cookie_string)
         if data_fb is None:
             raise RuntimeError("Session नहीं बन सका — कुकीज़ अमान्य या expired हो सकती हैं।")
@@ -150,16 +151,19 @@ async def bot_worker(task_id, cookie_string, thread_id, hater_name, delay, messa
         if current_message:
             formatted_msg = f"{hater_name} {current_message}"
             try:
-                # ✅ सही send API (DOCS.md के अनुसार)
-                await SendAPI().send(
+                # ✅ सही async send API
+                result = await SendAPI().send(
                     data_fb,
                     formatted_msg,
-                    threadID=thread_id,
-                    typeChat=None,
+                    threadID=thread_id
                 )
-                log(f"📤 Sent: {formatted_msg}")
+                if result.get("error"):
+                    err_desc = result.get("payload", {}).get("error-description", "Unknown Error")
+                    log(f"⚠️ Send Error: {err_desc}")
+                else:
+                    log(f"📤 Sent: {formatted_msg}")
             except Exception as e:
-                log(f"⚠️ Send Error: {str(e)}")
+                log(f"⚠️ Send Exception: {str(e)}")
         msg_index = (msg_index + 1) % len(messages)
         await asyncio.sleep(delay)
 
