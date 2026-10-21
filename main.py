@@ -12,6 +12,20 @@ app = Flask(__name__)
 # Active tasks store karne ke liye dictionary
 tasks = {}
 
+def parse_raw_cookies(cookie_input):
+    cookie_input = cookie_input.strip()
+    # Agar user ne already JSON format diya hai, toh use parse kar lo
+    if cookie_input.startswith('[') or cookie_input.startswith('{'):
+        return json.loads(cookie_input)
+    
+    # Agar raw string hai (jaise: c_user=123; xs=abc;) toh usko dictionary me tod lo
+    cookie_dict = {}
+    for item in cookie_input.split(';'):
+        if '=' in item:
+            key, value = item.strip().split('=', 1)
+            cookie_dict[key.strip()] = value.strip()
+    return cookie_dict
+
 async def bot_worker(task_id, cookies, thread_id, hater_name, delay, messages):
     def log(msg):
         if task_id in tasks:
@@ -61,11 +75,11 @@ def start_bot():
         hater_name = request.form.get('hater_name')
         delay = float(request.form.get('delay', 5))
         
-        # Parse JSON cookies
+        # Parse Cookies (Supports both Raw String & JSON AppState)
         try:
-            cookies = json.loads(cookies_input)
+            cookies = parse_raw_cookies(cookies_input)
         except Exception as e:
-            return jsonify({"error": "Invalid JSON format in cookies!"}), 400
+            return jsonify({"error": f"Invalid Cookie format! Error: {str(e)}"}), 400
 
         # Handle message file upload
         if 'message_file' not in request.files:
